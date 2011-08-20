@@ -313,8 +313,8 @@ var printUpdatedFiles = function() {
 			var subnames = [];
 			for ( var i in node)
 				subnames.push(i);
-			// если их одно
-			if (subnames.length == 1) {
+			// если их одно, и это каталог
+			if (subnames.length == 1 && node[subnames[0]]) {
 				// то передать имя ему и всё (не повышая уровень)
 				print(name + subnames[0], node[subnames[0]], level);
 				return;
