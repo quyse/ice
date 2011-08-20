@@ -81,8 +81,10 @@ File.prototype.beginMaking = function() {
 	if (this.maked)
 		return;
 
-	// увеличить счётчик компиляций
+	// увеличить счётчик компиляций и баланс
+	makesCount++;
 	makesBalance++;
+	updateProgress();
 
 	var This = this;
 	this.maked = new Event();
@@ -90,6 +92,7 @@ File.prototype.beginMaking = function() {
 	// по завершении компиляции уменьшить счётчик компиляций
 	this.maked.target(function() {
 		makesBalance--;
+		updateProgress();
 	});
 
 	// обновить тег
@@ -107,7 +110,7 @@ File.prototype.ok = function(becauseFresh) {
 	// обновить тег
 	this.updateTag(function() {
 		if (!becauseFresh)
-			console.log(This.name);
+			fileUpdated(This.name);
 		// сообщить о завершении
 		This.maked.fire();
 	});
@@ -254,11 +257,100 @@ exports.make = function(fileName) {
 	getFile(fileName).make();
 };
 
+/** обновить прогресс
+ */
+var updateProgress = function() {
+	// FIXME: код ниже выводит полосу прогресса в консоли,
+	// но eclipse не воспринимает \r
+	return;
+	var count = 32;
+	var progress = (makesCount - makesBalance) / makesCount * count;
+	var str = '\r';
+	for ( var i = 0; i < progress; ++i)
+		str += '█';
+	for (; i < count; ++i)
+		str += '▒';
+	process.stdout.write(str);
+};
+
+/** список обновлённых файлов
+ */
+var updatedFiles = [];
+/** добавить файл в список обновлённых
+ */
+var fileUpdated = function(fileName) {
+	updatedFiles.push(fileName);
+};
+/** вывести обновлённые файлы
+ */
+var printUpdatedFiles = function() {
+	process.stdout.write('\n');
+	// отсортировать имена
+	updatedFiles.sort();
+	// сформировать дерево
+	var root = {};
+	for ( var i = 0; i < updatedFiles.length; ++i) {
+		var file = updatedFiles[i];
+		var j = file.indexOf('/');
+		var lastj = 0;
+		var node = root;
+		while (j >= 0) {
+			var dir = file.substring(lastj + 1, j + 1);
+			if (node[dir] === undefined)
+				node[dir] = {};
+			node = node[dir];
+
+			lastj = j;
+			j = file.indexOf('/', j + 1);
+		}
+		node[file.substr(lastj + 1)] = null;
+	}
+	// вывести дерево
+	var print = function(name, node, level) {
+		// если это каталог
+		if (node) {
+			// получить файлы и каталоги внутри
+			var subnames = [];
+			for ( var i in node)
+				subnames.push(i);
+			// если их одно
+			if (subnames.length == 1) {
+				// то передать имя ему и всё (не повышая уровень)
+				print(name + subnames[0], node[subnames[0]], level);
+				return;
+			}
+			// напечатать имя каталога
+			var str = '';
+			for ( var i = 0; i < level; ++i)
+				str += '  ';
+			str += name;
+			console.log(str);
+			// отсортировать подымена
+			subnames.sort();
+			// рекурсивно пройтись по ним
+			for ( var i = 0; i < subnames.length; ++i)
+				print(subnames[i], node[subnames[i]], level + 1);
+		} else {
+			// иначе это файл, просто напечатать его
+			var str = '';
+			for ( var i = 0; i < level; ++i)
+				str += '  ';
+			str += name;
+			console.log(str);
+		}
+	};
+	print('', root, 0);
+};
+
 // по завершении процесса проверить, что все компиляторы завершили выполнение
+var makesCount = 0;
 var makesBalance = 0;
 var isError = false;
 
 process.on('exit', function() {
+	// вывести обновлённые файлы
+	printUpdatedFiles();
+
 	if (makesBalance != 0 && !isError)
 		console.error('uncompleted makes');
 });
