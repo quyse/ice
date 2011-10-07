@@ -52,7 +52,7 @@ var File = function(name) {
 	this.maked = null;
 	// тег (сейчас это время модификации файла)
 	this.tag = undefined;
-	// ожидатель зависимостей
+	// ожидатель зависимостей (null, если ни одной зависимости нет)
 	this.dependencyWaiter = null;
 	// максимальная метка времени зависимости
 	this.dependencyTag = null;
@@ -102,7 +102,7 @@ File.prototype.beginMaking = function() {
 	});
 };
 
-/** Сообщить о завершении компиляции.
+/** Сообщить об успешном завершении компиляции.
  * @param becauseFresh true, если компиляция завершается, потому что файл свежий
  */
 File.prototype.ok = function(becauseFresh) {
@@ -114,6 +114,15 @@ File.prototype.ok = function(becauseFresh) {
 		// сообщить о завершении
 		This.maked.fire();
 	});
+};
+
+/** Сообщить о неуспешном завершении компиляции.
+ * @param err строка с описанием ошибки
+ */
+File.prototype.error = function(err) {
+	this.err = err;
+	// сообщить о завершении
+	This.maked.fire();
 };
 
 /** Собрать файл.
@@ -138,12 +147,17 @@ File.prototype.dep = function() {
 	var This = this;
 	for ( var i = 0; i < arguments.length; ++i)
 		if (typeof arguments[i] == 'string')
+			// запустить компиляцию зависимости
 			(function(maked, file) {
 				file.make(function() {
-					// релаксировать время зависимостей
-					if (!This.dependencyTag || This.dependencyTag < file.tag)
-						This.dependencyTag = file.tag;
-					maked();
+					// если зависимость скомпилировалась без ошибок
+					if (!file.err) {
+						// релаксировать время зависимостей
+						if (!This.dependencyTag || This.dependencyTag < file.tag)
+							This.dependencyTag = file.tag;
+						// сообщить, что зависимость готова
+						maked();
+					}
 				});
 			})(this.dependencyWaiter.wait(), getFile(arguments[i]));
 		else if (typeof arguments[i] == 'function') {
@@ -156,7 +170,7 @@ File.prototype.dep = function() {
 /** Продолжить компиляцию, если файл нуждается в обновлении; завершить компиляцию, если нет
  * @param callback {Function} вызывается, только если файл не свежий
  */
-File.prototype.refresh = function(callback, moreDeps) {
+File.prototype.refresh = function(callback) {
 	if (this.isFresh())
 		this.ok(true);
 	else
@@ -170,6 +184,8 @@ File.prototype.waitDeps = function(callback, moreDeps) {
 	var This = this;
 	if (this.dependencyWaiter)
 		this.dependencyWaiter.target(function() {
+			if (This.err)
+				return;
 			This.dependencyWaiter = null;
 			if (moreDeps)
 				callback();
@@ -177,6 +193,8 @@ File.prototype.waitDeps = function(callback, moreDeps) {
 				This.refresh(callback);
 		});
 	else {
+		if (this.err)
+			return;
 		if (moreDeps)
 			callback();
 		else
@@ -292,7 +310,7 @@ var printUpdatedFiles = function() {
 	for ( var i = 0; i < updatedFiles.length; ++i) {
 		var file = updatedFiles[i];
 		var j = file.indexOf('/');
-		var lastj = 0;
+		var lastj = -1;
 		var node = root;
 		while (j >= 0) {
 			var dir = file.substring(lastj + 1, j + 1);
@@ -342,6 +360,33 @@ var printUpdatedFiles = function() {
 	print('', root, 0);
 };
 
+/** список файлов с ошибками
+ */
+var erroredFiles = [];
+/** добавить файл в список файлов с ошибками
+ */
+var fileErrored = function(fileName, err) {
+	erroredFiles.push({
+		name: fileName,
+		err: err
+	});
+};
+
+/** вывести файлы с ошибками
+ */
+var printErroredFiles = function() {
+	if (erroredFiles.length <= 0)
+		return;
+	isError = true;
+	console.log('some errors there');
+	for ( var i = 0; i < erroredFiles.length; ++i) {
+		var file = erroredFiles[i];
+		console.log(file.name);
+		console.log(file.err);
+		console.log('');
+	}
+};
+
 // по завершении процесса проверить, что все компиляторы завершили выполнение
 var makesCount = 0;
 var makesBalance = 0;
@@ -350,6 +395,8 @@ var isError = false;
 process.on('exit', function() {
 	// вывести обновлённые файлы
 	printUpdatedFiles();
+	// вывести файлы с ошибками
+	printErroredFiles();
 
 	if (makesBalance != 0 && !isError)
 		console.error('uncompleted makes');
