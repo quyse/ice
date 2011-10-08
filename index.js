@@ -121,8 +121,8 @@ File.prototype.ok = function(becauseFresh) {
  */
 File.prototype.error = function(err) {
 	this.err = err;
-	// сообщить о завершении
-	This.maked.fire();
+	this.maked.fire();
+	fileErrored(this.name, this.err);
 };
 
 /** Собрать файл.
@@ -248,7 +248,7 @@ var callMaker = function(file) {
 		}
 	}
 	file.refresh(function() {
-		throw new Error(file.name + ': no rule');
+		file.error('no rule');
 	});
 };
 
@@ -275,12 +275,13 @@ exports.make = function(fileName) {
 	getFile(fileName).make();
 };
 
+var noProgress = !!process.env.NOPROGRESS;
+
 /** обновить прогресс
  */
 var updateProgress = function() {
-	// FIXME: код ниже выводит полосу прогресса в консоли,
-	// но eclipse не воспринимает \r
-	return;
+	if (noProgress)
+		return;
 	var count = 32;
 	var progress = (makesCount - makesBalance) / makesCount * count;
 	var str = '\r';
@@ -403,11 +404,12 @@ process.on('exit', function() {
 });
 
 // обработка исключения
-process.on('uncaughtException', function(err) {
-	// указать, что произошла ошибка, чтобы не выводить лишнее сообщение
-	isError = true;
-	// вывести информацию
-	console.error(err.message);
-	// завершить процесс
-	process.exit(1);
-});
+if (0)
+	process.on('uncaughtException', function(err) {
+		// указать, что произошла ошибка, чтобы не выводить лишнее сообщение
+		isError = true;
+		// вывести информацию
+		console.error(err.message);
+		// завершить процесс
+		process.exit(1);
+	});
