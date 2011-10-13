@@ -392,15 +392,24 @@ var printErroredFiles = function() {
 var makesCount = 0;
 var makesBalance = 0;
 var isError = false;
+var isExit = false;
 
 process.on('exit', function() {
+	if (isExit)
+		return;
+	isExit = true;
 	// вывести обновлённые файлы
 	printUpdatedFiles();
 	// вывести файлы с ошибками
 	printErroredFiles();
 
-	if (makesBalance != 0 && !isError)
+	if (makesBalance != 0 && !isError) {
 		console.error('uncompleted makes');
+		isError = true;
+	}
+
+	if (isError)
+		process.exit(1);
 });
 
 // обработка исключения
