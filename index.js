@@ -56,6 +56,8 @@ var File = function(name) {
 	this.dependencyWaiter = null;
 	// максимальная метка времени зависимости
 	this.dependencyTag = null;
+	// флаг, что файл готов, потому что был свежим
+	this.wasFresh = false;
 };
 
 /** обновить тег
@@ -91,6 +93,8 @@ File.prototype.beginMaking = function() {
 
 	// по завершении компиляции уменьшить счётчик компиляций
 	this.maked.target(function() {
+		if(This.wasFresh)
+			makesCount--;
 		makesBalance--;
 		updateProgress();
 	});
@@ -109,7 +113,9 @@ File.prototype.ok = function(becauseFresh) {
 	var This = this;
 	// обновить тег
 	this.updateTag(function() {
-		if (!becauseFresh)
+		if (becauseFresh)
+			This.wasFresh = true;
+		else
 			fileUpdated(This.name);
 		// сообщить о завершении
 		This.maked.fire();
