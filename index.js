@@ -295,6 +295,7 @@ var updateProgress = function() {
 		str += '█';
 	for (; i < count; ++i)
 		str += '▒';
+	str += ' ' + (makesCount - makesBalance) + ' / ' + makesCount + '          ';
 	process.stdout.write(str);
 };
 
