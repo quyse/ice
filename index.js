@@ -281,7 +281,7 @@ exports.make = function(fileName) {
 	getFile(fileName).make();
 };
 
-var noProgress = !!process.env.NOPROGRESS;
+var noProgress = process.platform == 'win32' || !!process.env.NOPROGRESS;
 
 /** обновить прогресс
  */
