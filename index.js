@@ -281,7 +281,7 @@ exports.make = function(fileName) {
 	getFile(fileName).make();
 };
 
-var noProgress = process.platform == 'win32' || !!process.env.NOPROGRESS;
+var noProgress = !!process.env.NOPROGRESS;
 
 /** обновить прогресс
  */
@@ -290,7 +290,7 @@ var updateProgress = function() {
 		return;
 	var count = 32;
 	var progress = (makesCount - makesBalance) / makesCount * count;
-	var str = '\r';
+	var str = process.platform == 'win32' ? '\033[0G' : '\r';
 	for ( var i = 0; i < progress; ++i)
 		str += '█';
 	for (; i < count; ++i)
