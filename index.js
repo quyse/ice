@@ -420,12 +420,12 @@ process.on('exit', function() {
 });
 
 // обработка исключения
-if (0)
+if (1)
 	process.on('uncaughtException', function(err) {
 		// указать, что произошла ошибка, чтобы не выводить лишнее сообщение
 		isError = true;
 		// вывести информацию
-		console.error(err.message);
+		console.error(err);
 		// завершить процесс
 		process.exit(1);
 	});
