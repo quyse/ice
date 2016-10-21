@@ -86,7 +86,6 @@ File.prototype.beginMaking = function() {
 	// увеличить счётчик компиляций и баланс
 	makesCount++;
 	makesBalance++;
-	updateProgress();
 
 	var This = this;
 	this.maked = new Event();
@@ -96,7 +95,8 @@ File.prototype.beginMaking = function() {
 		if(This.wasFresh)
 			makesCount--;
 		makesBalance--;
-		updateProgress();
+		if(!This.wasFresh)
+			updateProgress(This.name);
 	});
 
 	// обновить тег
@@ -281,21 +281,47 @@ exports.make = function(fileName) {
 	getFile(fileName).make();
 };
 
-var noProgress = !!process.env.NOPROGRESS;
+const NO_PROGRESS = 0;
+const TTY_PROGRESS = 1;
+const LOG_PROGRESS = 2;
+var progressType = process.env.PROGRESS_TYPE;
+switch(progressType) {
+case 'log':
+case '2':
+	progressType = LOG_PROGRESS;
+	break;
+case 'tty':
+case '1':
+	progressType = TTY_PROGRESS;
+	break;
+case 'no':
+case '0':
+	progressType = NO_PROGRESS;
+	break;
+default:
+	progressType = process.stdout.isTTY ? TTY_PROGRESS : LOG_PROGRESS;
+	break;
+}
 
 /** обновить прогресс
  */
-var updateProgress = function() {
-	if (noProgress)
+const carriageReturn = process.platform == 'win32' ? '\033[0G' : '\r';
+var updateProgress = function(fileMade) {
+	if (progressType == NO_PROGRESS)
 		return;
 	var count = 32;
-	var progress = (makesCount - makesBalance) / makesCount * count;
-	var str = process.platform == 'win32' ? '\033[0G' : '\r';
-	for ( var i = 0; i < progress; ++i)
-		str += '█';
-	for (; i < count; ++i)
-		str += '▒';
-	str += ' ' + (makesCount - makesBalance) + ' / ' + makesCount + '          ';
+	var str;
+	if (progressType == TTY_PROGRESS) {
+		var progress = (makesCount - makesBalance) / makesCount * count;
+		str = carriageReturn + (erroredFiles.length > 0 ? '\033[31m' : '\033[32m');
+		for ( var i = 0; i < progress; ++i)
+			str += '█';
+		for (; i < count; ++i)
+			str += '▒';
+		str += '\033[0m ' + (makesCount - makesBalance) + ' / ' + makesCount + '          ';
+	} else {
+		str = '[ ' + (makesCount - makesBalance) + ' / ' + makesCount + ' ] ' + fileMade + '\n';
+	}
 	process.stdout.write(str);
 };
 
@@ -405,8 +431,8 @@ process.on('exit', function() {
 	if (isExit)
 		return;
 	isExit = true;
-	// вывести обновлённые файлы
-	printUpdatedFiles();
+	// вывести обновлённые файлы (если не лог)
+	if(progressType != LOG_PROGRESS) printUpdatedFiles();
 	// вывести файлы с ошибками
 	printErroredFiles();
 
@@ -420,12 +446,11 @@ process.on('exit', function() {
 });
 
 // обработка исключения
-if (1)
-	process.on('uncaughtException', function(err) {
-		// указать, что произошла ошибка, чтобы не выводить лишнее сообщение
-		isError = true;
-		// вывести информацию
-		console.error(err);
-		// завершить процесс
-		process.exit(1);
-	});
+process.on('uncaughtException', function(err) {
+	// указать, что произошла ошибка, чтобы не выводить лишнее сообщение
+	isError = true;
+	// вывести информацию
+	console.error(err);
+	// завершить процесс
+	process.exit(1);
+});
