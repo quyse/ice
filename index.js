@@ -311,16 +311,23 @@ var updateProgress = function(fileMade) {
 		return;
 	var count = 32;
 	var str;
+	var started = makesCount - makesBalance;
+	var succeeded = updatedFiles.length;
+	var failed = erroredFiles.length;
 	if (progressType == TTY_PROGRESS) {
-		var progress = (makesCount - makesBalance) / makesCount * count;
-		str = carriageReturn + (erroredFiles.length > 0 ? '\033[31m' : '\033[32m');
+		var progress = started / makesCount * count;
+		str = carriageReturn;
 		for ( var i = 0; i < progress; ++i)
 			str += '█';
 		for (; i < count; ++i)
 			str += '▒';
-		str += '\033[0m ' + (makesCount - makesBalance) + ' / ' + makesCount + '          ';
+		var progresses = [];
+		if(succeeded) progresses.push('\033[32m' + succeeded + '\033[0m');
+		if(failed) progresses.push('\033[31m' + failed + '\033[0m');
+		if(!progresses.length) progresses.push('0');
+		str += ' ' + progresses.join(' + ') + ' / ' + makesCount + '          ';
 	} else {
-		str = '[ ' + (makesCount - makesBalance) + ' / ' + makesCount + ' ] ' + fileMade + '\n';
+		str = '[ ' + started + ' / ' + makesCount + ' ] ' + fileMade + '\n';
 	}
 	process.stdout.write(str);
 };
