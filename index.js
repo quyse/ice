@@ -315,12 +315,11 @@ var updateProgress = function(fileMade) {
 	var succeeded = updatedFiles.length;
 	var failed = erroredFiles.length;
 	if (progressType == TTY_PROGRESS) {
-		var progress = started / makesCount * count;
+		var progress = Math.floor(started * count * 8 / makesCount);
 		str = carriageReturn;
-		for ( var i = 0; i < progress; ++i)
-			str += '█';
-		for (; i < count; ++i)
-			str += '▒';
+		var progressBlocks = Math.floor(progress / 8)
+		for ( var i = 0; i < count; ++i)
+			str += i < progressBlocks ? '█' : (i < progressBlocks + 1 ? ' ▏▎▍▌▋▊▉'[progress % 8] : ' ');
 		var progresses = [];
 		if(succeeded) progresses.push('\033[32m' + succeeded + '\033[0m');
 		if(failed) progresses.push('\033[31m' + failed + '\033[0m');
